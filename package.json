@@ -1,7 +1,7 @@
 {
   "name": "advent-of-code",
   "version": "1.0.0",
-  "main": "./day3/index.js",
+  "main": "./day4/index.js",
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
