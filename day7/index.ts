@@ -1,6 +1,6 @@
 import { data } from './data';
 
-type convertedMap = Map<'test', number> & Map<'values', number[]>;
+type convertedMap = Record<'test', number> & Record<'values', number[]>;
 
 const ACTIONS = {
   add: (a: number, b: number) => a + b,
@@ -10,20 +10,16 @@ const ACTIONS = {
 
 type actionTypes = keyof typeof ACTIONS;
 
-const convertToMap = (line: string): convertedMap => {
+const convertToMap = (line: string) => {
   const [test, ...values] = line.split(' ');
-  const map = new Map();
-  map.set('test', Number(test.replace(':', '')));
-  map.set(
-    'values',
-    values.map((v) => Number(v))
-  );
-  return map;
+  return {
+    test: Number(test.replace(':', '')),
+    values: values.map((v) => Number(v)),
+  };
 };
 
 const testLine = (line: convertedMap) => {
-  const test = line.get('test');
-  const values = line.get('values') as number[];
+  const { test, values } = line;
   const max = values!.length - 1;
 
   let pass = false;
@@ -54,7 +50,7 @@ const solve = () => {
   const converted = data.map((line) => convertToMap(line));
   console.log(
     converted.reduce((acc, cur) => {
-      const test = cur.get('test') as number;
+      const { test } = cur;
       return testLine(cur) ? acc + test : acc;
     }, 0)
   );
