@@ -1,7 +1,6 @@
-import { testData } from './data';
+import { data } from "./data";
 
 const sleep = () => new Promise((res) => setImmediate(res));
-const data = testData;
 
 const potentialTrailHeads: number[][] = [];
 
@@ -24,12 +23,10 @@ const directions = {
   r: [1, 0],
 } as const;
 
-type direction = keyof typeof directions;
-
 const addLoc = (startKey: string, loc: number[]) => {
   if (trailHeads.has(startKey)) {
     const old = trailHeads.get(startKey)!;
-    const newOld = old.filter(([x, y]) => x !== loc[0] && y !== loc[1]);
+    const newOld = old.filter(([x, y]) => !(x === loc[0] && y === loc[1]));
     trailHeads.set(startKey, [...newOld, loc]);
     return;
   }
@@ -37,20 +34,32 @@ const addLoc = (startKey: string, loc: number[]) => {
   return;
 };
 
-const walk = async (startKey: string, oldX: number, oldY: number, x: number, y: number, first?: boolean) => {
-  await sleep();
-  const explore = () => {
-    Object.values(directions).forEach(([vx, vy]) => {
+const walk = async (
+  startKey: string,
+  oldX: number,
+  oldY: number,
+  x: number,
+  y: number,
+  first?: boolean
+) => {
+  const explore = async () => {
+    await sleep();
+    const promises = [];
+    for (const [vx, vy] of Object.values(directions)) {
       const [nextX, nextY] = [x + vx, y + vy];
-      walk(startKey, x, y, nextX, nextY, false);
-    });
+      promises.push(walk(startKey, x, y, nextX, nextY, false));
+    }
+    await Promise.all(promises);
   };
+
   if (first) {
-    explore();
+    await explore();
     return;
   }
   if (!isInBounds(x, y)) return;
   if (x === oldX && y === oldY) return;
+  const [sx, sy] = startKey.split(",").map((s) => Number(s));
+  if (sx === x && sy === y) return;
   const oldHeight = data[oldY][oldX];
   const currentHeight = data[y][x];
 
@@ -60,18 +69,70 @@ const walk = async (startKey: string, oldX: number, oldY: number, x: number, y: 
     addLoc(startKey, [x, y]);
     return;
   }
-  explore();
+  await explore();
 };
 
-// total of all scores for testData = 36
-potentialTrailHeads.forEach(([x, y]) => {
-  void walk(`${x},${y}`, 0, 0, x, y, true);
-});
+const trailPaths = new Map<string, Set<string>>();
 
-setTimeout(() => {
-  console.log(trailHeads);
-  const total = [...trailHeads.values()].reduce((acc, cur) => {
-    return acc + cur.length;
-  }, 0);
-  console.log(total);
-}, 10000);
+const walk2 = async (
+  startKey: string,
+  oldX: number,
+  oldY: number,
+  x: number,
+  y: number,
+  first: boolean,
+  path: string[]
+) => {
+  const explore = async (first: boolean = false) => {
+    await sleep();
+    const promises = [];
+    for (const [vx, vy] of Object.values(directions)) {
+      const [nextX, nextY] = [x + vx, y + vy];
+      promises.push(
+        walk2(startKey, x, y, nextX, nextY, false, [
+          ...path,
+          `${nextX},${nextY}`,
+        ])
+      );
+    }
+    await Promise.all(promises);
+  };
+
+  if (first) {
+    await explore(first);
+    return;
+  }
+  if (!isInBounds(x, y)) return;
+
+  const oldHeight = data[oldY][oldX];
+  const currentHeight = data[y][x];
+
+  if (currentHeight !== oldHeight + 1) return;
+  if (currentHeight === 9) {
+    const pathString = path.join("|");
+    if (!trailPaths.has(startKey)) {
+      trailPaths.set(startKey, new Set());
+    }
+    trailPaths.get(startKey)!.add(pathString);
+    return;
+  }
+
+  await explore();
+};
+
+const start = async () => {
+  const promises = [];
+  for (let i = 0; i < potentialTrailHeads.length; i++) {
+    const [x, y] = potentialTrailHeads[i];
+    promises.push(walk2(`${x},${y}`, 0, 0, x, y, true, [`${x},${y}`]));
+  }
+
+  await Promise.all(promises);
+  console.log(
+    [...trailPaths.values()].reduce((acc, cur) => {
+      return acc + cur.size;
+    }, 0)
+  );
+};
+
+start();
