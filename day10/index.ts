@@ -1,5 +1,6 @@
-import { testData } from "./data";
+import { testData } from './data';
 
+const sleep = () => new Promise((res) => setImmediate(res));
 const data = testData;
 
 const potentialTrailHeads: number[][] = [];
@@ -25,39 +26,52 @@ const directions = {
 
 type direction = keyof typeof directions;
 
-const walk = (start: string, x: number, y: number, direction: direction) => {
-  if (!isInBounds(x, y)) return;
-
-  const currentHeight = data[y][x];
-
-  const [vecX, vecY] = directions[direction];
-  const [nextX, nextY] = [x + vecX, y + vecY];
-  if (!isInBounds(nextX, nextY)) return;
-
-  const nextHeight = data[nextY][nextX];
-
-  if (nextHeight <= currentHeight) return;
-  if (nextHeight === 9) {
-    if (trailHeads.has(start)) {
-      const oldTrailHead = trailHeads.get(start)!;
-      if (oldTrailHead.some((t) => t[0] === nextX && t[1] === nextY)) return;
-      trailHeads.set(start, [...oldTrailHead, [nextX, nextY]]);
-      return;
-    }
-    trailHeads.set(start, [[nextX, nextY]]);
+const addLoc = (startKey: string, loc: number[]) => {
+  if (trailHeads.has(startKey)) {
+    const old = trailHeads.get(startKey)!;
+    const newOld = old.filter(([x, y]) => x !== loc[0] && y !== loc[1]);
+    trailHeads.set(startKey, [...newOld, loc]);
     return;
   }
-
-  switch (direction) {
-    case "u":
-    case "d":
-    case "l":
-    case "r":
-    default:
-      return;
-  }
+  trailHeads.set(startKey, [loc]);
+  return;
 };
 
-potentialTrailHeads.forEach(([x, y]) => {});
+const walk = async (startKey: string, oldX: number, oldY: number, x: number, y: number, first?: boolean) => {
+  await sleep();
+  const explore = () => {
+    Object.values(directions).forEach(([vx, vy]) => {
+      const [nextX, nextY] = [x + vx, y + vy];
+      walk(startKey, x, y, nextX, nextY, false);
+    });
+  };
+  if (first) {
+    explore();
+    return;
+  }
+  if (!isInBounds(x, y)) return;
+  if (x === oldX && y === oldY) return;
+  const oldHeight = data[oldY][oldX];
+  const currentHeight = data[y][x];
+
+  if (currentHeight !== oldHeight + 1) return;
+
+  if (currentHeight === 9) {
+    addLoc(startKey, [x, y]);
+    return;
+  }
+  explore();
+};
 
 // total of all scores for testData = 36
+potentialTrailHeads.forEach(([x, y]) => {
+  void walk(`${x},${y}`, 0, 0, x, y, true);
+});
+
+setTimeout(() => {
+  console.log(trailHeads);
+  const total = [...trailHeads.values()].reduce((acc, cur) => {
+    return acc + cur.length;
+  }, 0);
+  console.log(total);
+}, 10000);
